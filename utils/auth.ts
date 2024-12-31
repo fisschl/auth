@@ -1,13 +1,23 @@
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
-import { passkey } from "better-auth/plugins";
+import pg from "pg";
 import { username } from "better-auth/plugins";
+import { passkey } from "better-auth/plugins/passkey";
+import { defineEventHandler, toWebRequest } from "h3";
 
-const { DATABASE_URL } = process.env;
+const { AUTH_DATABASE_URL } = process.env;
+const { Pool } = pg;
 
 export const auth = betterAuth({
+  emailAndPassword: {
+    enabled: true,
+  },
   database: new Pool({
-    connectionString: DATABASE_URL,
+    connectionString: AUTH_DATABASE_URL,
   }),
   plugins: [username(), passkey()],
+});
+
+export const handleAuth = defineEventHandler(async (event) => {
+  const request = toWebRequest(event);
+  return auth.handler(request);
 });

@@ -1,4 +1,8 @@
 import "dotenv/config";
+import { Server } from "socket.io";
+import { handleAuth } from "./utils/auth";
+import { handleTranslate } from "./router/translate";
+import { handleVariables } from "./router/variables";
 import {
   createApp,
   createRouter,
@@ -7,29 +11,33 @@ import {
   toNodeListener,
 } from "h3";
 import { createServer } from "node:http";
-import hello from "./router/hello";
-import auth from "./router/auth";
 
 export const app = createApp();
-
-const router = createRouter();
-app.use(router);
 
 const corsHandler = defineEventHandler(async (event) => {
   const didHandleCors = handleCors(event, {
     origin: "*",
-    preflight: {
-      statusCode: 204,
-    },
     methods: "*",
+    preflight: { statusCode: 204 },
   });
   if (didHandleCors) return true;
 });
-
 app.use(corsHandler);
+const router = createRouter();
+app.use(router);
 
-router.use("/api/hello", hello);
-router.use("/api/auth/**", auth);
+router.use("/api/auth/**", handleAuth);
 
 const server = createServer(toNodeListener(app));
-server.listen(4030);
+server.listen(3000);
+
+const io = new Server({
+  cors: { origin: "*" },
+});
+
+io.on("connection", (socket) => {
+  handleTranslate(io, socket);
+  handleVariables(io, socket);
+});
+
+io.listen(4000);
