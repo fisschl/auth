@@ -24,13 +24,15 @@ const corsHandler = defineEventHandler(async (event) => {
   if (didHandleCors) return true;
 });
 app.use(corsHandler);
+
 const router = createRouter();
-app.use(router);
 
 router
   .use("/api/auth/**", handleAuth)
   .use("/api/markdown2html", handleMarkdownToHtml)
   .use("/api/html2markdown", handleHtmlToMarkdown);
+
+app.use(router);
 
 const server = createServer(toNodeListener(app));
 server.listen(3000);
