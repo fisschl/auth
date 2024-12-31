@@ -8,8 +8,8 @@ import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
-import type { Request, Response } from "express";
 import TurndownService from "turndown";
+import { createError, defineEventHandler, readBody } from "h3";
 
 const BracketsPattern =
   /(```[\s\S]*?```|`.*?`)|\\\[([\s\S]*?[^\\])\\\]|\\\((.*?)\\\)/g;
@@ -61,27 +61,22 @@ export const htmlToMarkdown = (html?: string) => {
   return turndownService.turndown(html);
 };
 
-export const handleMarkdownToHtml = async (req: Request, res: Response) => {
-  const { markdown, cache } = req.body;
-  if (!markdown) {
-    res.status(400).send("markdown is required");
-    return;
-  }
+export const handleMarkdownToHtml = defineEventHandler(async (event) => {
+  const { markdown, cache } = await readBody(event);
+  if (!markdown)
+    throw createError({ status: 400, message: "markdown is required" });
   if (cache) {
     const result = await parseMarkdownCache(markdown);
-    res.json({ html: result });
+    return { html: result };
   } else {
     const result = await parseMarkdown(markdown);
-    res.json({ html: result });
+    return { html: result };
   }
-};
+});
 
-export const handleHtmlToMarkdown = (req: Request, res: Response) => {
-  const { html } = req.body;
-  if (!html) {
-    res.status(400).send("html is required");
-    return;
-  }
+export const handleHtmlToMarkdown = defineEventHandler(async (event) => {
+  const { html } = await readBody(event);
+  if (!html) throw createError({ status: 400, message: "html is required" });
   const result = htmlToMarkdown(html);
-  res.json({ markdown: result });
-};
+  return { markdown: result };
+});

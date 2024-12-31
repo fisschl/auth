@@ -11,6 +11,7 @@ import {
   toNodeListener,
 } from "h3";
 import { createServer } from "node:http";
+import { handleHtmlToMarkdown, handleMarkdownToHtml } from "./router/markdown";
 
 export const app = createApp();
 
@@ -26,7 +27,10 @@ app.use(corsHandler);
 const router = createRouter();
 app.use(router);
 
-router.use("/api/auth/**", handleAuth);
+router
+  .use("/api/auth/**", handleAuth)
+  .use("/api/markdown2html", handleMarkdownToHtml)
+  .use("/api/html2markdown", handleHtmlToMarkdown);
 
 const server = createServer(toNodeListener(app));
 server.listen(3000);
