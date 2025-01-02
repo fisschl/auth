@@ -1,8 +1,5 @@
 import "dotenv/config";
-import { Server } from "socket.io";
 import { handleAuth } from "./utils/auth";
-import { handleTranslate } from "./router/translate";
-import { handleVariables } from "./router/variables";
 import {
   createApp,
   createRouter,
@@ -11,7 +8,6 @@ import {
   toNodeListener,
 } from "h3";
 import { createServer } from "node:http";
-import { handleHtmlToMarkdown, handleMarkdownToHtml } from "./router/markdown";
 
 export const app = createApp();
 
@@ -27,23 +23,9 @@ app.use(corsHandler);
 
 const router = createRouter();
 
-router
-  .use("/api/auth/**", handleAuth)
-  .use("/api/markdown/markdown2html", handleMarkdownToHtml)
-  .use("/api/markdown/html2markdown", handleHtmlToMarkdown);
+router.use("/api/auth/**", handleAuth);
 
 app.use(router);
 
 const server = createServer(toNodeListener(app));
 server.listen(3000);
-
-const io = new Server({
-  cors: { origin: "*" },
-});
-
-io.on("connection", (socket) => {
-  handleTranslate(io, socket);
-  handleVariables(io, socket);
-});
-
-io.listen(4000);
