@@ -29,8 +29,8 @@ const router = createRouter();
 
 router
   .use("/api/auth/**", handleAuth)
-  .use("/api/markdown2html", handleMarkdownToHtml)
-  .use("/api/html2markdown", handleHtmlToMarkdown);
+  .use("/api/markdown/markdown2html", handleMarkdownToHtml)
+  .use("/api/markdown/html2markdown", handleHtmlToMarkdown);
 
 app.use(router);
 
