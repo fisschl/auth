@@ -5,7 +5,6 @@ useHead({
   title: "登录",
 });
 
-const router = useRouter();
 const toast = useToast();
 
 // 表单状态
@@ -14,44 +13,44 @@ const formState = ref({
   password: "",
 });
 
-const submitting = ref(false);
+// 密码显示状态
+const showPassword = ref(false);
 
-// 使用精准导入的 zod/mini 函数进行表单验证
+// 使用 useMutation 管理登录状态
+const { mutate: login, asyncStatus } = useMutation({
+  mutation: async (credentials: { email: string; password: string }) => {
+    const response = await $fetch("/api/user/login", {
+      baseURL: "/auth",
+      method: "POST",
+      body: credentials,
+    });
+    return response;
+  },
+  onSuccess: () => {
+    toast.add({
+      title: "登录成功",
+      description: "正在跳转...",
+      color: "success",
+    });
+  },
+  onError: (error: any) => {
+    toast.add({
+      title: "登录失败",
+      description: error.response?.data?.message || "邮箱或密码错误",
+      color: "error",
+    });
+  },
+});
+
+// 使用 zod/mini 进行表单验证
 const schema = object({
   email: string().check(minLength(1, "请输入邮箱"), email("请输入有效的邮箱地址")),
   password: string().check(minLength(6, "密码长度不能少于6位")),
 });
 
 // 登录处理函数
-const handleSubmit = async () => {
-  submitting.value = true;
-
-  try {
-    const response = await $fetch("/api/user/login", {
-      method: "POST",
-      body: formState.value,
-    });
-
-    if (response && response.token) {
-      toast.add({
-        title: "登录成功",
-        description: "正在跳转...",
-        color: "success",
-      });
-
-      setTimeout(() => {
-        router.push("/");
-      }, 1500);
-    }
-  } catch (error: any) {
-    toast.add({
-      title: "登录失败",
-      description: error.response?.data?.message || "邮箱或密码错误",
-      color: "error",
-    });
-  } finally {
-    submitting.value = false;
-  }
+const handleSubmit = () => {
+  login(formState.value);
 };
 </script>
 
@@ -72,8 +71,8 @@ const handleSubmit = async () => {
             v-model="formState.email"
             type="email"
             placeholder="请输入邮箱"
-            prefix="lucide:mail"
-            :disabled="submitting"
+            icon="i-lucide-mail"
+            :disabled="asyncStatus === 'loading'"
           />
         </UFormField>
 
@@ -81,17 +80,27 @@ const handleSubmit = async () => {
         <UFormField name="password" label="密码">
           <UInput
             v-model="formState.password"
-            type="password"
+            :type="showPassword ? 'text' : 'password'"
             placeholder="请输入密码"
-            prefix="lucide:key"
-            :disabled="submitting"
-            :show-password="true"
-          />
+            icon="i-lucide-key"
+            :disabled="asyncStatus === 'loading'"
+          >
+            <template #trailing>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="link"
+                :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                class="h-auto p-0"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </UInput>
         </UFormField>
 
         <!-- 登录按钮 -->
-        <UButton type="submit" class="w-full" :loading="submitting">
-          {{ submitting ? "登录中..." : "登录" }}
+        <UButton type="submit" class="w-full" :loading="asyncStatus === 'loading'">
+          {{ asyncStatus === "loading" ? "登录中..." : "登录" }}
         </UButton>
       </UForm>
 
