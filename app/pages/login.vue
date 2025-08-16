@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { object, string, minLength, email } from "zod/mini";
+import { object, string, minLength, email, type infer as Infer } from "zod/mini";
 
 useHead({
   title: "登录",
@@ -8,7 +8,7 @@ useHead({
 const toast = useToast();
 
 // 表单状态
-const formState = ref({
+const formState = ref<LoginCredentials>({
   email: "",
   password: "",
 });
@@ -16,9 +16,18 @@ const formState = ref({
 // 密码显示状态
 const showPassword = ref(false);
 
+// 使用 zod/mini 进行表单验证
+const schema = object({
+  email: string().check(minLength(1, "请输入邮箱"), email("请输入有效的邮箱地址")),
+  password: string().check(minLength(6, "密码长度不能少于6位")),
+});
+
+// 从 schema 推断类型
+type LoginCredentials = Infer<typeof schema>;
+
 // 使用 useMutation 管理登录状态
 const { mutate: login, asyncStatus } = useMutation({
-  mutation: async (credentials: { email: string; password: string }) => {
+  mutation: async (credentials: LoginCredentials) => {
     const response = await $fetch("/api/user/login", {
       baseURL: "/auth",
       method: "POST",
@@ -42,12 +51,6 @@ const { mutate: login, asyncStatus } = useMutation({
   },
 });
 
-// 使用 zod/mini 进行表单验证
-const schema = object({
-  email: string().check(minLength(1, "请输入邮箱"), email("请输入有效的邮箱地址")),
-  password: string().check(minLength(6, "密码长度不能少于6位")),
-});
-
 // 登录处理函数
 const handleSubmit = () => {
   login(formState.value);
@@ -57,14 +60,8 @@ const handleSubmit = () => {
 <template>
   <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
     <UCard class="w-full max-w-md">
-      <template #header>
-        <div class="text-center">
-          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">用户登录</h2>
-          <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">欢迎回来</p>
-        </div>
-      </template>
-
       <UForm :schema="schema" :state="formState" class="space-y-6" @submit="handleSubmit">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">登录</h2>
         <!-- 邮箱输入 -->
         <UFormField name="email" label="邮箱">
           <UInput
@@ -98,25 +95,26 @@ const handleSubmit = () => {
           </UInput>
         </UFormField>
 
+        <p class="flex text-sm text-gray-600 dark:text-gray-400">
+          还没有账号?
+          <a
+            href="#"
+            class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            立即注册
+          </a>
+        </p>
+
         <!-- 登录按钮 -->
-        <UButton type="submit" class="w-full" :loading="asyncStatus === 'loading'">
+        <UButton
+          type="submit"
+          class="w-full"
+          :loading="asyncStatus === 'loading'"
+          icon="i-lucide-login"
+        >
           {{ asyncStatus === "loading" ? "登录中..." : "登录" }}
         </UButton>
       </UForm>
-
-      <template #footer>
-        <div class="text-center">
-          <span class="text-sm text-gray-600 dark:text-gray-400">
-            还没有账号?
-            <a
-              href="#"
-              class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              立即注册
-            </a>
-          </span>
-        </div>
-      </template>
     </UCard>
   </div>
 </template>
