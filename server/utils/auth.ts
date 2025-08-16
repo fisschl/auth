@@ -1,9 +1,9 @@
 import { db } from "@@/drizzle";
 import { tokens, users } from "@@/drizzle/schema";
 import type { InferSelectModel } from "drizzle-orm";
-import { subDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 import { eq, inArray, lt } from "drizzle-orm";
-import { omit, throttle } from "lodash-es";
+import { debounce, omit } from "lodash-es";
 import { LRUCache } from "lru-cache";
 import type { H3Event } from "h3";
 
@@ -46,21 +46,17 @@ export const selectUserByToken = async (token: string): Promise<UserModel | unde
   return user;
 };
 
-export const later = (fn: () => unknown) =>
-  throttle(fn, 1000 * 60, { leading: false, trailing: true });
-
-export const clearOutdatedToken = later(async () => {
-  const date = subDays(new Date(), 60);
+export const clearOutdatedToken = debounce(async () => {
   const oldTokens = await db
     .select({ token: tokens.token })
     .from(tokens)
-    .where(lt(tokens.createdAt, date.toISOString()))
+    .where(lt(tokens.createdAt, subDays(new Date(), 60).toISOString()))
     .limit(1024);
   if (!oldTokens.length) return;
   const tokenValues = oldTokens.map((t) => t.token);
   await db.delete(tokens).where(inArray(tokens.token, tokenValues));
   for (const token of oldTokens) tokenCache.delete(token.token);
-});
+}, 10 * 1000);
 
 export const useLoginToken = (event: H3Event) => {
   const query = getQuery(event);
@@ -104,18 +100,12 @@ export const useSetTokenCookie = async (event: H3Event, options: { userId: strin
       userId: options.userId,
     })
     .returning();
-  if (!token)
-    throw createError({
-      status: 400,
-      message: "创建令牌失败",
-    });
+  if (!token) throw createError({ status: 400, message: "创建令牌失败" });
 
-  const expires = subDays(new Date(), -60); // 设置为 60 天后过期
   setCookie(event, "token", token.token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    expires,
+    expires: addDays(new Date(), 60),
   });
 
   const user = await selectUserByUserId(options.userId);
